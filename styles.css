@@ -1,0 +1,327 @@
+:root {
+    --primary-color: #4a90e2;
+    --secondary-color: #f5f5f5;
+    --text-color: #333;
+    --error-color: #e74c3c;
+    --success-color: #2ecc71;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    line-height: 1.6;
+    background-color: var(--secondary-color);
+    color: var(--text-color);
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+header {
+    margin-bottom: 30px;
+}
+
+h1 {
+    color: var(--primary-color);
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.search-container {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+input[type="text"],
+input[type="date"] {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 16px;
+}
+
+input[type="text"]:focus,
+input[type="date"]:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 5px rgba(74, 144, 226, 0.3);
+}
+
+button {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+button:hover {
+    background-color: #357abd;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 500;
+}
+
+.fotos-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+}
+
+.fotos-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 15px;
+    width: 100%;
+}
+
+.foto-preview {
+    position: relative;
+    width: 100%;
+    padding-bottom: 100%;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 2px solid var(--primary-color);
+}
+
+.foto-preview img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.foto-preview .remover-foto {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    background: var(--error-color);
+    color: white;
+    border: none;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 12px;
+    padding: 0;
+}
+
+input[type="file"] {
+    display: none;
+}
+
+.btn-foto {
+    background-color: var(--primary-color);
+    padding: 8px 15px;
+    border-radius: 20px;
+    font-size: 14px;
+    width: auto;
+}
+
+.btn-foto i {
+    margin-right: 5px;
+}
+
+.mapa {
+    width: 100%;
+    height: 300px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    border: 2px solid var(--primary-color);
+}
+
+.coordenadas {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+#coordenadasTexto {
+    flex: 1;
+    font-size: 14px;
+    color: #666;
+}
+
+.btn-localizacao {
+    padding: 8px 15px;
+    border-radius: 20px;
+    font-size: 14px;
+}
+
+.registros {
+    margin-top: 40px;
+}
+
+.registro-item {
+    background-color: white;
+    padding: 15px;
+    border-radius: 4px;
+    margin-bottom: 10px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.registro-fotos {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.registro-foto {
+    width: 100%;
+    padding-bottom: 100%;
+    position: relative;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.registro-foto img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.registro-info {
+    flex: 1;
+}
+
+.registro-mapa {
+    width: 100%;
+    height: 200px;
+    border-radius: 8px;
+    margin: 10px 0;
+}
+
+.registro-item .acoes {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.btn-editar {
+    background-color: #f39c12;
+}
+
+.btn-excluir {
+    background-color: var(--error-color);
+}
+
+.mensagem {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    padding: 15px 25px;
+    border-radius: 4px;
+    color: white;
+    display: none;
+    animation: slideIn 0.3s ease-in-out;
+    z-index: 1000;
+}
+
+.mensagem.sucesso {
+    background-color: var(--success-color);
+}
+
+.mensagem.erro {
+    background-color: var(--error-color);
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@media (max-width: 768px) {
+    .container {
+        padding: 10px;
+    }
+
+    .search-container {
+        flex-direction: column;
+    }
+
+    button {
+        width: 100%;
+    }
+
+    .fotos-grid {
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    }
+
+    .registro-fotos {
+        grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+    }
+
+    .mapa {
+        height: 250px;
+    }
+
+    .registro-mapa {
+        height: 150px;
+    }
+} 
+
+.status-conexao {
+    text-align: center;
+    margin-bottom: 10px;
+    font-size: 14px;
+}
+
+.status-conexao span {
+    padding: 5px 10px;
+    border-radius: 4px;
+    display: none;
+}
+
+.status-conexao .online {
+    background-color: var(--success-color);
+    color: white;
+}
+
+.status-conexao .offline {
+    background-color: var(--error-color);
+    color: white;
+}
+
+.status-conexao.esta-online .online {
+    display: inline-block;
+}
+
+.status-conexao.esta-offline .offline {
+    display: inline-block;
+} 
