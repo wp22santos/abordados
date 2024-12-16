@@ -1,77 +1,56 @@
-# Sistema de Cadastro de Abordados
+# Sistema de Registro de Abordagem Policial
 
-Sistema web para cadastro de pessoas com suporte a fotos e localização GPS, funcionando offline.
+Sistema web para registro de abordagens policiais com suporte a fotos, geolocalização e sincronização com Google Sheets.
 
 ## Funcionalidades
 
-- Cadastro de pessoas com campos:
-  - Nome
-  - Nome da Mãe
-  - Nome do Pai
-  - Data de Nascimento
-  - RG
-  - CPF
-  - Apelido
-  - Múltiplas Fotos
-  - Localização GPS
-
-- Recursos:
-  - Funciona 100% offline (PWA)
-  - Captura de fotos pela câmera
-  - GPS de alta precisão
-  - Busca em todos os campos
-  - Edição e exclusão de registros
-  - Exportação de dados
-  - Interface responsiva
+- Registro de dados pessoais (nome, filiação, documentos, etc.)
+- Captura de fotos com compressão automática
+- Geolocalização precisa com GPS
+- Armazenamento offline com localStorage
+- Sincronização com Google Sheets
+- Interface adaptada para uso móvel
+- Busca por nome, RG ou CPF
+- Exportação de dados em JSON
 
 ## Instalação
 
 1. Clone o repositório:
 ```bash
-git clone https://github.com/wp22santos/abordados.git
+git clone [URL_DO_SEU_REPOSITORIO]
 ```
 
-2. Abra o arquivo `index.html` em um servidor web
-   - Pode usar o Live Server do VS Code
-   - Ou qualquer outro servidor HTTP
+2. Abra o arquivo `index.html` em um servidor web local.
+   - Você pode usar o Python: `python -m http.server 8000`
+   - Ou o Live Server do VS Code
 
-3. Para funcionar offline:
-   - Acesse primeiro com internet para cachear os recursos
-   - Depois pode usar normalmente sem internet
+3. Configure o Google Sheets:
+   - Acesse https://script.google.com
+   - Crie um novo projeto
+   - Cole o código do arquivo `google-apps-script.txt`
+   - Publique como aplicativo web
+   - Copie o ID do script e atualize em `googleSheets.js`
 
 ## Uso
 
-1. **Fotos**:
-   - Clique em "Adicionar Foto"
-   - Use a câmera ou escolha da galeria
-   - Pode adicionar várias fotos
-   - Clique no X para remover
+1. Abra o sistema no navegador
+2. Configure a integração com Google Sheets no ícone de engrenagem
+3. Preencha os dados do abordado
+4. Tire fotos usando o botão da câmera
+5. Atualize a localização se necessário
+6. Clique em "Registrar Abordagem"
 
-2. **Localização**:
-   - Permita o acesso ao GPS quando solicitado
-   - Clique em "Atualizar Localização" se necessário
-   - Mostra precisão em metros
-
-3. **Dados**:
-   - Preencha os campos desejados (todos opcionais)
-   - CPF e RG têm formatação automática
-   - Clique em Cadastrar
-
-4. **Registros**:
-   - Use a busca para filtrar registros
-   - Clique em Editar para modificar
-   - Clique em Excluir para remover
-   - Use Exportar para baixar os dados
+Os dados serão salvos localmente e sincronizados com o Google Sheets quando houver conexão.
 
 ## Tecnologias
 
 - HTML5
 - CSS3
-- JavaScript (Vanilla)
-- Service Worker para offline
-- LocalStorage para dados
-- Leaflet para mapas
+- JavaScript (ES6+)
+- Leaflet.js para mapas
+- Google Sheets API
+- LocalStorage para dados offline
 
 ## Licença
 
-MIT 
+Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para mais detalhes. 

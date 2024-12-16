@@ -23,6 +23,21 @@ class GerenciadorDados {
         this.registros = JSON.parse(localStorage.getItem('registros')) || [];
         this.modoEdicao = false;
         this.registroEditandoId = null;
+        this.pendingSync = JSON.parse(localStorage.getItem('pendingSync')) || [];
+        
+        // Inicializar Google Sheets
+        this.initGoogleSheets();
+    }
+
+    async initGoogleSheets() {
+        try {
+            const isAuthenticated = await googleSheets.initialize();
+            if (isAuthenticated) {
+                this.syncPendingRegistros();
+            }
+        } catch (error) {
+            console.error('Erro ao inicializar Google Sheets:', error);
+        }
     }
 
     async adicionar(dados) {
@@ -34,7 +49,41 @@ class GerenciadorDados {
 
         this.registros.push(novoRegistro);
         this.salvarNoLocalStorage();
+
+        // Tentar sincronizar com Google Sheets
+        try {
+            if (navigator.onLine) {
+                await googleSheets.syncRegistro(novoRegistro);
+            } else {
+                this.pendingSync.push(novoRegistro);
+                localStorage.setItem('pendingSync', JSON.stringify(this.pendingSync));
+            }
+        } catch (error) {
+            console.error('Erro ao sincronizar:', error);
+            this.pendingSync.push(novoRegistro);
+            localStorage.setItem('pendingSync', JSON.stringify(this.pendingSync));
+        }
+
         return novoRegistro;
+    }
+
+    async syncPendingRegistros() {
+        if (this.pendingSync.length > 0) {
+            const registrosPendentes = [...this.pendingSync];
+            this.pendingSync = [];
+            localStorage.setItem('pendingSync', JSON.stringify(this.pendingSync));
+
+            for (const registro of registrosPendentes) {
+                try {
+                    await googleSheets.syncRegistro(registro);
+                } catch (error) {
+                    console.error('Erro ao sincronizar registro pendente:', error);
+                    this.pendingSync.push(registro);
+                    localStorage.setItem('pendingSync', JSON.stringify(this.pendingSync));
+                    break;
+                }
+            }
+        }
     }
 
     editar(id, dados) {
@@ -139,32 +188,78 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Manipulação de fotos
     function adicionarPreviewFoto(file) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            const fotoId = Date.now();
-            fotos.push({
-                id: fotoId,
-                data: e.target.result
-            });
+        return new Promise((resolve, reject) => {
+            // Verifica o tamanho do arquivo (máximo 5MB)
+            if (file.size > 5 * 1024 * 1024) {
+                mostrarMensagem('Arquivo muito grande! Máximo 5MB', 'erro');
+                reject(new Error('Arquivo muito grande'));
+                return;
+            }
 
-            const previewDiv = document.createElement('div');
-            previewDiv.className = 'foto-preview';
-            previewDiv.innerHTML = `
-                <img src="${e.target.result}" alt="Foto">
-                <button class="remover-foto" data-id="${fotoId}">
-                    <i class="fas fa-times"></i>
-                </button>
-            `;
+            const reader = new FileReader();
+            
+            reader.onload = (e) => {
+                // Comprimir a imagem antes de salvar
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    let width = img.width;
+                    let height = img.height;
+                    
+                    // Redimensionar se a imagem for muito grande
+                    const MAX_SIZE = 1024;
+                    if (width > height && width > MAX_SIZE) {
+                        height *= MAX_SIZE / width;
+                        width = MAX_SIZE;
+                    } else if (height > MAX_SIZE) {
+                        width *= MAX_SIZE / height;
+                        height = MAX_SIZE;
+                    }
 
-            fotosGrid.appendChild(previewDiv);
+                    canvas.width = width;
+                    canvas.height = height;
+                    
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    
+                    // Converter para JPEG com qualidade reduzida
+                    const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.7);
+                    
+                    const fotoId = Date.now();
+                    fotos.push({
+                        id: fotoId,
+                        data: compressedDataUrl
+                    });
 
-            // Evento para remover foto
-            previewDiv.querySelector('.remover-foto').addEventListener('click', () => {
-                fotos = fotos.filter(f => f.id !== fotoId);
-                previewDiv.remove();
-            });
-        };
-        reader.readAsDataURL(file);
+                    const previewDiv = document.createElement('div');
+                    previewDiv.className = 'foto-preview';
+                    previewDiv.innerHTML = `
+                        <img src="${compressedDataUrl}" alt="Foto">
+                        <button class="remover-foto" data-id="${fotoId}">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    `;
+
+                    fotosGrid.appendChild(previewDiv);
+
+                    previewDiv.querySelector('.remover-foto').addEventListener('click', () => {
+                        fotos = fotos.filter(f => f.id !== fotoId);
+                        previewDiv.remove();
+                    });
+
+                    resolve();
+                };
+                
+                img.src = e.target.result;
+            };
+            
+            reader.onerror = () => {
+                mostrarMensagem('Erro ao processar a foto!', 'erro');
+                reject(new Error('Erro ao ler arquivo'));
+            };
+            
+            reader.readAsDataURL(file);
+        });
     }
 
     // Manipulação de foto
@@ -256,21 +351,37 @@ document.addEventListener('DOMContentLoaded', () => {
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
 
-        const dados = {
-            nome: document.getElementById('nome').value,
-            mae: document.getElementById('mae').value,
-            pai: document.getElementById('pai').value,
-            nascimento: document.getElementById('nascimento').value,
-            rg: document.getElementById('rg').value,
-            cpf: document.getElementById('cpf').value,
-            apelido: document.getElementById('apelido').value,
-            fotos: fotos,
-            localizacao: localizacaoAtual
-        };
-
         try {
+            // Verificar espaço disponível no localStorage
+            const storageEstimate = await navigator.storage?.estimate?.() || { usage: 0, quota: 0 };
+            const usedSpace = storageEstimate.usage || 0;
+            const totalSpace = storageEstimate.quota || 0;
+            const availableSpace = totalSpace - usedSpace;
+
+            // Estimar tamanho dos dados (incluindo fotos)
+            const dadosString = JSON.stringify(fotos);
+            const dadosSize = new Blob([dadosString]).size;
+
+            if (dadosSize > availableSpace) {
+                mostrarMensagem('Sem espaço para salvar! Exporte e limpe alguns dados.', 'erro');
+                return;
+            }
+
+            const dados = {
+                nome: document.getElementById('nome').value,
+                mae: document.getElementById('mae').value,
+                pai: document.getElementById('pai').value,
+                nascimento: document.getElementById('nascimento').value,
+                rg: document.getElementById('rg').value,
+                cpf: document.getElementById('cpf').value,
+                apelido: document.getElementById('apelido').value,
+                fotos: fotos,
+                localizacao: localizacaoAtual,
+                dataHora: new Date().toISOString()
+            };
+
             if (gerenciador.modoEdicao) {
-                gerenciador.editar(gerenciador.registroEditandoId, dados);
+                await gerenciador.editar(gerenciador.registroEditandoId, dados);
                 gerenciador.modoEdicao = false;
                 gerenciador.registroEditandoId = null;
                 document.getElementById('submitBtn').textContent = 'Cadastrar';
@@ -285,8 +396,8 @@ document.addEventListener('DOMContentLoaded', () => {
             fotosGrid.innerHTML = '';
             renderizarRegistros();
         } catch (erro) {
-            mostrarMensagem('Erro ao salvar o registro!', 'erro');
-            console.error(erro);
+            console.error('Erro ao salvar:', erro);
+            mostrarMensagem('Erro ao salvar! Verifique o tamanho das fotos.', 'erro');
         }
     });
 
@@ -300,6 +411,82 @@ document.addEventListener('DOMContentLoaded', () => {
     exportBtn.addEventListener('click', () => {
         gerenciador.exportarDados();
     });
+
+    // Configurações do Modal
+    const modal = document.getElementById('modalConfig');
+    const btnConfig = document.getElementById('btnConfig');
+    const btnFechar = document.querySelector('.btn-fechar');
+    const btnCriarPlanilha = document.getElementById('btnCriarPlanilha');
+    const btnLimparConfig = document.getElementById('btnLimparConfig');
+    const statusGoogle = document.getElementById('statusGoogle');
+    const planilhaId = document.getElementById('planilhaId');
+
+    // Funções do Modal
+    function abrirModal() {
+        modal.style.display = 'block';
+        atualizarStatusGoogle();
+    }
+
+    function fecharModal() {
+        modal.style.display = 'none';
+    }
+
+    function atualizarStatusGoogle() {
+        const id = localStorage.getItem('spreadsheetId');
+        if (id) {
+            statusGoogle.textContent = 'Conectado';
+            statusGoogle.style.color = 'var(--success-color)';
+            planilhaId.textContent = id;
+        } else {
+            statusGoogle.textContent = 'Não conectado';
+            statusGoogle.style.color = 'var(--error-color)';
+            planilhaId.textContent = 'Nenhuma';
+        }
+    }
+
+    // Eventos do Modal
+    btnConfig.addEventListener('click', abrirModal);
+    btnFechar.addEventListener('click', fecharModal);
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) fecharModal();
+    });
+
+    // Criar Planilha
+    btnCriarPlanilha.addEventListener('click', async () => {
+        btnCriarPlanilha.disabled = true;
+        btnCriarPlanilha.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Criando...';
+        
+        try {
+            const success = await googleSheets.setupSpreadsheet();
+            if (success) {
+                mostrarMensagem('Planilha criada com sucesso! Verifique seu navegador.', 'sucesso');
+                atualizarStatusGoogle();
+            } else {
+                mostrarMensagem('Erro ao criar planilha. Tente novamente.', 'erro');
+            }
+        } catch (error) {
+            console.error('Erro:', error);
+            mostrarMensagem('Erro ao criar planilha. Tente novamente.', 'erro');
+        } finally {
+            btnCriarPlanilha.disabled = false;
+            btnCriarPlanilha.innerHTML = '<i class="fas fa-plus"></i> Criar Nova Planilha';
+        }
+    });
+
+    // Limpar Configuração
+    btnLimparConfig.addEventListener('click', () => {
+        if (confirm('Tem certeza que deseja remover a conexão com a planilha?')) {
+            localStorage.removeItem('spreadsheetId');
+            atualizarStatusGoogle();
+            mostrarMensagem('Configuração removida com sucesso!', 'sucesso');
+        }
+    });
+
+    // Remover botão antigo de criar planilha
+    const btnAntigo = document.getElementById('criarPlanilhaBtn');
+    if (btnAntigo) {
+        btnAntigo.parentElement.removeChild(btnAntigo);
+    }
 
     // Funções globais para edição e exclusão
     window.editarRegistro = (id) => {
@@ -355,8 +542,42 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    // Função para limpar dados antigos se necessário
+    async function limparDadosAntigos() {
+        try {
+            const registros = gerenciador.registros;
+            if (registros.length > 100) { // Limite de 100 registros
+                registros.sort((a, b) => new Date(b.dataCadastro) - new Date(a.dataCadastro));
+                gerenciador.registros = registros.slice(0, 100);
+                gerenciador.salvarNoLocalStorage();
+                mostrarMensagem('Alguns registros antigos foram removidos para liberar espaço', 'erro');
+            }
+        } catch (erro) {
+            console.error('Erro ao limpar dados:', erro);
+        }
+    }
+
+    // Verificar espaço periodicamente
+    setInterval(limparDadosAntigos, 60000); // Verificar a cada minuto
+
     // Inicialização
     inicializarMapa();
     atualizarLocalizacao();
     renderizarRegistros();
 }); 
+
+// Adicionar indicador de sincronização ao status
+function atualizarStatusConexao() {
+    const status = document.getElementById('statusConexao');
+    if (navigator.onLine) {
+        status.classList.remove('esta-offline');
+        status.classList.add('esta-online');
+        // Tentar sincronizar quando voltar online
+        if (gerenciador) {
+            gerenciador.syncPendingRegistros();
+        }
+    } else {
+        status.classList.remove('esta-online');
+        status.classList.add('esta-offline');
+    }
+}
